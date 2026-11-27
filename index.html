@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AegisBLE // EFR32xG26 Cold-Chain & Geofence Command Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #070b14;
+      --bg-card: rgba(15, 23, 42, 0.78);
+      --border-subtle: rgba(148, 163, 184, 0.16);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-cyan: #06b6d4;
+      --accent-blue: #3b82f6;
+      --accent-emerald: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-rose: #f43f5e;
+      --font-sans: 'Space Grotesk', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at 15% 15%, #0f172a 0%, #070b14 65%);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      padding: 20px 28px;
+      overflow-x: hidden;
+    }
+
+    /* Top Header Bar */
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 16px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      backdrop-filter: blur(16px);
+      margin-bottom: 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      display: grid;
+      place-items: center;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #041019;
+      box-shadow: 0 0 20px rgba(6, 182, 212, 0.4);
+    }
+
+    .brand-title h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-title p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .conn-pill {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent-rose);
+      box-shadow: 0 0 10px var(--accent-rose);
+    }
+
+    .status-dot.connected {
+      background: var(--accent-emerald);
+      box-shadow: 0 0 12px var(--accent-emerald);
+    }
+
+    .btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-family: var(--font-sans);
+      font-weight: 600;
+      font-size: 0.88rem;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+      color: #041019;
+      box-shadow: 0 4px 18px rgba(6, 182, 212, 0.3);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 24px rgba(6, 182, 212, 0.5);
+    }
+
+    .btn-secondary {
+      background: rgba(30, 41, 59, 0.85);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent-cyan);
+    }
+
+    /* Alert Banner */
+    .alert-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 22px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      background: rgba(244, 63, 94, 0.16);
+      border: 1px solid var(--accent-rose);
+      color: #fecdd3;
+      font-weight: 600;
+      animation: pulseAlert 1.5s infinite;
+    }
+
+    .alert-banner.active {
+      display: flex;
+    }
+
+    @keyframes pulseAlert {
+      0%, 100% { box-shadow: 0 0 0 rgba(244, 63, 94, 0.4); }
+      50% { box-shadow: 0 0 22px rgba(244, 63, 94, 0.45); }
+    }
+
+    /* Main Dashboard Grid */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr 1.05fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 1180px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: 18px;
+      padding: 22px;
+      backdrop-filter: blur(16px);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-subtle);
+      padding-bottom: 12px;
+    }
+
+    .card-header h2 {
+      font-size: 1.02rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(6, 182, 212, 0.14);
+      color: var(--accent-cyan);
+      border: 1px solid rgba(6, 182, 212, 0.35);
+    }
+
+    /* Proximity Radar Canvas Container */
+    .radar-wrap {
+      position: relative;
+      width: 270px;
+      height: 270px;
+      margin: 0 auto;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.14) 0%, rgba(15, 23, 42, 0.92) 72%);
+      border: 1px solid rgba(6, 182, 212, 0.35);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .radar-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px dashed rgba(148, 163, 184, 0.25);
+      pointer-events: none;
+    }
+
+    .radar-ring.r1 { width: 90px; height: 90px; }
+    .radar-ring.r2 { width: 175px; height: 175px; }
+    .radar-ring.r3 { width: 250px; height: 250px; }
+
+    .radar-sweep {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: conic-gradient(from 0deg, rgba(6, 182, 212, 0.26) 0deg, transparent 70deg);
+      border-radius: 50%;
+      animation: radarSpin 4s linear infinite;
+    }
+
+    @keyframes radarSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .board-center-node {
+      z-index: 3;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      color: #03111a;
+      font-family: var(--font-mono);
+      font-weight: 700;
+      font-size: 0.65rem;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 18px var(--accent-cyan);
+    }
+
+    .phone-node {
+      position: absolute;
+      z-index: 4;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      color: #021a12;
+      font-size: 0.75rem;
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 16px var(--accent-emerald);
+      transition: all 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+      transform: translate(45px, -25px);
+    }
+
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .kpi-box {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .kpi-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .kpi-value {
+      font-family: var(--font-mono);
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-top: 4px;
+      color: var(--text-main);
+    }
+
+    /* Temperature Card */
+    .temp-hero {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.85);
+      padding: 18px;
+      border-radius: 14px;
+      border: 1px solid var(--border-subtle);
+    }
+
+    .temp-big {
+      font-family: var(--font-mono);
+      font-size: 2.6rem;
+      font-weight: 700;
+      color: var(--accent-cyan);
+    }
+
+    .temp-chart {
+      width: 100%;
+      height: 120px;
+      background: rgba(7, 11, 20, 0.65);
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      padding: 8px;
+    }
+
+    .ble-info {
+      background: rgba(7, 11, 20, 0.8);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+
+    .ble-info span {
+      color: var(--accent-emerald);
+      font-weight: 600;
+    }
+
+    /* Bi-Directional Mode Buttons */
+    .mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .mode-btn {
+      cursor: pointer;
+      padding: 14px 12px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--border-subtle);
+      color: var(--text-main);
+      text-align: left;
+      transition: all 0.2s ease;
+    }
+
+    .mode-btn:hover {
+      border-color: var(--accent-cyan);
+    }
+
+    .mode-btn.active {
+      background: rgba(6, 182, 212, 0.16);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 16px rgba(6, 182, 212, 0.25);
+    }
+
+    .mode-btn-title {
+      font-weight: 700;
+      font-size: 0.86rem;
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .mode-btn-desc {
+      font-size: 0.73rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+
+    .control-panel {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .slider-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-cyan);
+      cursor: pointer;
+    }
+
+    .log-console {
+      height: 115px;
+      overflow-y: auto;
+      background: #04070d;
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.73rem;
+      color: #cbd5e1;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation & BLE Connection Bar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo">xG26</div>
+      <div class="brand-title">
+        <h1>AegisBLE // Cold-Chain & Proximity Geofence</h1>
+        <p>Silicon Labs BRD2709A (EFR32MG26B510F3200IM48) • Bi-Directional Web Bluetooth</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="conn-pill">
+        <div id="statusDot" class="status-dot"></div>
+        <span id="connText">DISCONNECTED</span>
+      </div>
+      <button id="simBtn" class="btn btn-secondary" onclick="toggleSimulation()">
+        Simulate Live Hardware
+      </button>
+      <button id="bleConnectBtn" class="btn btn-primary" onclick="connectBLE()">
+        Connect EFR32xG26 via BLE
+      </button>
+    </div>
+  </header>
+
+  <!-- Emergency Alert Banner -->
+  <div id="alertBanner" class="alert-banner">
+    <span id="alertText">⚠️ COLD-CHAIN OR TAMPER ALARM ACTIVE ON EFR32xG26 NODE!</span>
+    <button class="btn btn-secondary" onclick="sendBLECommand(0x20)">Auto-Calibrate Threshold (+2°C)</button>
+  </div>
+
+  <!-- 3-Column Real-Time Dashboard -->
+  <main class="dashboard-grid">
+
+    <!-- COLUMN 1: Real-Time Phone Location / Proximity Radar -->
+    <section class="card">
+      <div class="card-header">
+        <h2>📍 Phone-to-Device Proximity Radar</h2>
+        <span id="zoneBadge" class="badge">NEAR ZONE</span>
+      </div>
+
+      <div class="radar-wrap">
+        <div class="radar-sweep"></div>
+        <div class="radar-ring r1"></div>
+        <div class="radar-ring r2"></div>
+        <div class="radar-ring r3"></div>
+        <div class="board-center-node" title="BRD2709A EFR32xG26">xG26</div>
+        <div id="phoneNode" class="phone-node" title="Connected Phone / Browser">📱</div>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi-box">
+          <div class="kpi-label">Live RSSI</div>
+          <div id="rssiVal" class="kpi-value">-55 dBm</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Approx Distance</div>
+          <div id="distVal" class="kpi-value">0.82 m</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Geofence Lock</div>
+          <div id="geoStateVal" class="kpi-value" style="color: var(--accent-emerald);">UNLOCKED</div>
+        </div>
+      </div>
+
+      <div class="ble-info">
+        <div><strong>Connectable Bluetooth LE GATT:</strong></div>
+        <div>Advertised name: <span>EFR32</span></div>
+        <div>Service UUID: <span>DE8A5AAC-A99B-C315-0C80-60D4CBB51224</span></div>
+      </div>
+    </section>
+
+    <!-- COLUMN 2: Real-Time Silicon Temperature & Telemetry Chart -->
+    <section class="card">
+      <div class="card-header">
+        <h2>🌡️ On-Chip Silicon Temperature (TEMPDRV)</h2>
+        <span class="badge">EFR32MG26 DIE</span>
+      </div>
+
+      <div class="temp-hero">
+        <div>
+          <div class="kpi-label">INTERNAL CHIP TEMPERATURE</div>
+          <div id="tempVal" class="temp-big">25 °C</div>
+        </div>
+        <div style="text-align: right;">
+          <div class="kpi-label">ALARM THRESHOLD</div>
+          <div id="thrVal" class="kpi-value" style="color: var(--accent-amber); font-size: 1.6rem;">30 °C</div>
+        </div>
+      </div>
+
+      <canvas id="tempCanvas" class="temp-chart" width="420" height="120"></canvas>
+
+      <div class="kpi-row">
+        <div class="kpi-box">
+          <div class="kpi-label">Cooling Relay (LED0)</div>
+          <div id="led0Val" class="kpi-value">OFF</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Tamper Switch (BTN0)</div>
+          <div id="btn0Val" class="kpi-value" style="color: var(--accent-emerald);">SECURE</div>
+        </div>
+        <div class="kpi-box">
+          <div class="kpi-label">Alarm State</div>
+          <div id="alarmVal" class="kpi-value" style="color: var(--accent-emerald);">NORMAL</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- COLUMN 3: Bi-Directional Mode Switcher & Hardware Controls -->
+    <section class="card">
+      <div class="card-header">
+        <h2>⚡ Bi-Directional Mode Command Center</h2>
+        <span id="activeModeBadge" class="badge">MODE 0: AUTO</span>
+      </div>
+
+      <div class="mode-grid">
+        <button id="modeBtn0" class="mode-btn active" onclick="sendBLECommand(0x10)">
+          <div class="mode-btn-title"><span>🛡️ Auto Thermal</span><span>0x10</span></div>
+          <div class="mode-btn-desc">Automatically turns ON LED0 cooling if chip Temp ≥ Threshold.</div>
+        </button>
+
+        <button id="modeBtn1" class="mode-btn" onclick="sendBLECommand(0x11)">
+          <div class="mode-btn-title"><span>🎛️ Manual Override</span><span>0x11</span></div>
+          <div class="mode-btn-desc">Direct remote ON/OFF control of BRD2709A LED0 from browser.</div>
+        </button>
+
+        <button id="modeBtn2" class="mode-btn" onclick="sendBLECommand(0x12)">
+          <div class="mode-btn-title"><span>📍 Proximity Geofence</span><span>0x12</span></div>
+          <div class="mode-btn-desc">Auto-locks (LED0 ON) when phone walks &gt; 2.0m away from board.</div>
+        </button>
+
+        <button id="modeBtn3" class="mode-btn" onclick="sendBLECommand(0x13)">
+          <div class="mode-btn-title"><span>🚨 Lockdown Alarm</span><span>0x13</span></div>
+          <div class="mode-btn-desc">Forces LED0 ON and activates the lockdown alarm.</div>
+        </button>
+      </div>
+
+      <div class="control-panel">
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-primary" style="flex: 1; justify-content: center;" onclick="sendBLECommand(0x01)">
+            Turn LED0 ON (0x01)
+          </button>
+          <button class="btn btn-secondary" style="flex: 1; justify-content: center;" onclick="sendBLECommand(0x00)">
+            Turn LED0 OFF (0x00)
+          </button>
+        </div>
+
+        <div class="slider-row">
+          <div style="display: flex; justify-content: space-between; font-size: 0.8rem;">
+            <span>Remote Alarm Threshold Slider:</span>
+            <strong id="sliderLabel" style="font-family: var(--font-mono); color: var(--accent-cyan);">30 °C</strong>
+          </div>
+          <input id="thrSlider" type="range" min="20" max="45" value="30"
+                 oninput="document.getElementById('sliderLabel').innerText = this.value + ' °C'"
+                 onchange="sendThresholdToBoard(this.value)" />
+        </div>
+      </div>
+
+      <div id="logBox" class="log-console">
+        [SYSTEM] Web Bluetooth Dashboard initialized. Click 'Connect EFR32xG26 via BLE' or 'Simulate Live Hardware'.<br>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Silicon Labs Official 'Bluetooth - SoC Blinky' GATT UUIDs
+    const BLINKY_SERVICE_UUID = 'de8a5aac-a99b-c315-0c80-60d4cbb51224';
+    const LED_CONTROL_UUID    = '5b026510-4088-c297-46d8-be6c736a087a';
+    const REPORT_BUTTON_UUID  = '61a885a4-41c3-60d0-9a53-6d652a70d29c';
+
+    let bleDevice = null;
+    let ledChar = null;
+    let notifyChar = null;
+    let simTimer = null;
+
+    // Live Telemetry State
+    let state = {
+      tempC: 25,
+      thresholdC: 30,
+      rssiSmooth: -55,
+      mode: 0,
+      led0: false,
+      btn0: false,
+      alarm: false,
+      angleDeg: 35
+    };
+
+    const tempHistory = new Array(30).fill(25);
+
+    function logMsg(msg) {
+      const box = document.getElementById('logBox');
+      const time = new Date().toLocaleTimeString();
+      box.innerHTML = `[${time}] ${msg}<br>` + box.innerHTML;
+    }
+
+    // Connect to BRD2709A via Web Bluetooth API
+    async function connectBLE() {
+      if (!window.isSecureContext) {
+        const message = 'Web Bluetooth requires a secure page. Open this site over HTTPS or from localhost.';
+        logMsg(message);
+        alert(message);
+        return;
+      }
+
+      if (!navigator.bluetooth) {
+        const message = 'Web Bluetooth is unavailable in this browser. Use a supported version of Chrome or Edge and enable Bluetooth.';
+        logMsg(message);
+        alert(message);
+        return;
+      }
+      try {
+        logMsg('Choose "EFR32" in the Bluetooth device picker. If it is absent, the board may not be advertising.');
+        bleDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ services: [BLINKY_SERVICE_UUID] }],
+          optionalServices: [BLINKY_SERVICE_UUID]
+        });
+
+        bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
+        const server = await bleDevice.gatt.connect();
+        const service = await server.getPrimaryService(BLINKY_SERVICE_UUID);
+
+        ledChar = await service.getCharacteristic(LED_CONTROL_UUID);
+        notifyChar = await service.getCharacteristic(REPORT_BUTTON_UUID);
+
+        await notifyChar.startNotifications();
+        notifyChar.addEventListener('characteristicvaluechanged', handleTelemetryNotification);
+
+        if (simTimer) toggleSimulation();
+        document.getElementById('statusDot').classList.add('connected');
+        document.getElementById('connText').innerText = 'CONNECTED: ' + (bleDevice.name || 'EFR32xG26');
+        logMsg('Connected to BRD2709A GATT Server! Streaming live telemetry...');
+      } catch (err) {
+        if (err.name === 'NotFoundError') {
+          logMsg('No device selected. Make sure the board is powered, running the latest firmware, and nearby, then try again.');
+        } else {
+          logMsg('BLE connection failed: ' + err.message);
+        }
+      }
+    }
+
+    function onDisconnected() {
+      document.getElementById('statusDot').classList.remove('connected');
+      document.getElementById('connText').innerText = 'DISCONNECTED';
+      logMsg('BLE Device disconnected.');
+    }
+
+    // Decode 8-bit Tagged Telemetry Frame from EFR32MG26
+    function handleTelemetryNotification(event) {
+      const byte = event.target.value.getUint8(0);
+      const frameType = (byte >> 6) & 0x03;
+      const payload = byte & 0x3F;
+
+      if (frameType === 0) {
+        // Status Frame: [00 | Mode(2b) | Alarm(1b) | LED0(1b) | BTN0(1b)]
+        state.btn0  = Boolean(payload & 0x01);
+        state.led0  = Boolean(payload & 0x02);
+        state.alarm = Boolean(payload & 0x04);
+        state.mode  = (payload >> 3) & 0x03;
+      } else if (frameType === 1) {
+        // Live Temperature Frame (Celsius)
+        state.tempC = payload;
+        tempHistory.push(state.tempC);
+        if (tempHistory.length > 30) tempHistory.shift();
+      } else if (frameType === 2) {
+        // Live Connection RSSI Frame (-30 to -93 dBm)
+        const rawRssi = -(payload + 30);
+        // Exponential Moving Average (EMA) smoothing for stable distance radar
+        state.rssiSmooth = (0.35 * rawRssi) + (0.65 * state.rssiSmooth);
+      } else if (frameType === 3) {
+        // Active Alarm Threshold Frame
+        state.thresholdC = payload;
+        document.getElementById('thrSlider').value = state.thresholdC;
+        document.getElementById('sliderLabel').innerText = state.thresholdC + ' °C';
+      }
+
+      renderDashboard();
+    }
+
+    // Send Bi-Directional 1-Byte Command back to BRD2709A
+    async function sendBLECommand(cmdByte) {
+      // Update local state immediately if in simulation or connected
+      if (cmdByte === 0x00) { state.mode = 1; state.led0 = false; }
+      if (cmdByte === 0x01) { state.mode = 1; state.led0 = true; }
+      if (cmdByte >= 0x10 && cmdByte <= 0x13) { state.mode = cmdByte - 0x10; }
+      if (cmdByte === 0x20) { state.thresholdC = state.tempC + 2; }
+      if ((cmdByte & 0xC0) === 0x40) { state.thresholdC = cmdByte & 0x3F; }
+
+      logMsg(`Sent Bi-Directional Command 0x${cmdByte.toString(16).toUpperCase()} to EFR32xG26`);
+
+      if (ledChar) {
+        try {
+          await ledChar.writeValue(new Uint8Array([cmdByte]));
+        } catch (err) {
+          logMsg('Write error: ' + err.message);
+        }
+      }
+      renderDashboard();
+    }
+
+    function sendThresholdToBoard(val) {
+      const target = Math.max(15, Math.min(60, parseInt(val, 10)));
+      sendBLECommand(0x40 | (target & 0x3F));
+    }
+
+    // Log-Distance Path Loss Equation: d = 10 ^ ((TxPower - RSSI) / (10 * n))
+    function calculateDistanceMeters(rssi) {
+      const txPowerAt1m = -59;
+      const pathLossExponent = 2.2;
+      const dist = Math.pow(10, (txPowerAt1m - rssi) / (10 * pathLossExponent));
+      return Math.max(0.15, Math.min(10.0, dist));
+    }
+
+    // Update Radar, Charts, and Mode Indicators
+    function renderDashboard() {
+      const rssiInt = Math.round(state.rssiSmooth);
+      const distM = calculateDistanceMeters(state.rssiSmooth);
+
+      document.getElementById('rssiVal').innerText = `${rssiInt} dBm`;
+      document.getElementById('distVal').innerText = `${distM.toFixed(2)} m`;
+
+      // Zone Classification
+      const zoneBadge = document.getElementById('zoneBadge');
+      if (distM < 0.6) {
+        zoneBadge.innerText = 'IMMEDIATE (<0.6m)';
+      } else if (distM <= 2.0) {
+        zoneBadge.innerText = 'NEAR ZONE (0.6-2m)';
+      } else {
+        zoneBadge.innerText = 'FAR ZONE (>2.0m)';
+      }
+
+      // Position Phone Icon on 2D Radar
+      const maxRadiusPx = 112;
+      const radiusPx = Math.min(maxRadiusPx, (distM / 4.0) * maxRadiusPx + 18);
+      state.angleDeg = (state.angleDeg + 4) % 360;
+      const rad = (state.angleDeg * Math.PI) / 180;
+      const x = Math.cos(rad) * radiusPx;
+      const y = Math.sin(rad) * radiusPx;
+      document.getElementById('phoneNode').style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+
+      // Geofence Lock Status
+      const geoEl = document.getElementById('geoStateVal');
+      if (distM > 2.0) {
+        geoEl.innerText = 'AWAY (LOCK)';
+        geoEl.style.color = 'var(--accent-amber)';
+      } else {
+        geoEl.innerText = 'IN RANGE';
+        geoEl.style.color = 'var(--accent-emerald)';
+      }
+
+      // Temperature fields
+      document.getElementById('tempVal').innerText = `${state.tempC} °C`;
+      document.getElementById('thrVal').innerText  = `${state.thresholdC} °C`;
+
+      // Hardware Indicators
+      const led0El = document.getElementById('led0Val');
+      led0El.innerText = state.led0 ? 'ON (COOLING)' : 'OFF';
+      led0El.style.color = state.led0 ? 'var(--accent-cyan)' : 'var(--text-muted)';
+
+      const btn0El = document.getElementById('btn0Val');
+      btn0El.innerText = state.btn0 ? 'TAMPER!' : 'SECURE';
+      btn0El.style.color = state.btn0 ? 'var(--accent-rose)' : 'var(--accent-emerald)';
+
+      const alarmEl = document.getElementById('alarmVal');
+      alarmEl.innerText = state.alarm ? 'BREACH!' : 'NORMAL';
+      alarmEl.style.color = state.alarm ? 'var(--accent-rose)' : 'var(--accent-emerald)';
+
+      // Emergency Banner
+      const banner = document.getElementById('alertBanner');
+      if (state.alarm) {
+        banner.classList.add('active');
+      } else {
+        banner.classList.remove('active');
+      }
+
+      // Highlight Active Mode Button
+      const modeNames = ['MODE 0: AUTO', 'MODE 1: MANUAL', 'MODE 2: GEOFENCE', 'MODE 3: LOCKDOWN'];
+      document.getElementById('activeModeBadge').innerText = modeNames[state.mode] || 'MODE 0';
+      for (let i = 0; i < 4; i++) {
+        const btn = document.getElementById('modeBtn' + i);
+        if (i === state.mode) btn.classList.add('active');
+        else btn.classList.remove('active');
+      }
+
+      drawTemperatureChart();
+    }
+
+    function drawTemperatureChart() {
+      const canvas = document.getElementById('tempCanvas');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      const minT = 18;
+      const maxT = 42;
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Draw Threshold Line
+      const thrY = h - ((state.thresholdC - minT) / (maxT - minT)) * (h - 20) - 10;
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.55)';
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.moveTo(0, thrY);
+      ctx.lineTo(w, thrY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Draw Live Temperature Curve
+      ctx.strokeStyle = '#06b6d4';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      tempHistory.forEach((t, idx) => {
+        const x = (idx / (tempHistory.length - 1)) * (w - 16) + 8;
+        const y = h - ((t - minT) / (maxT - minT)) * (h - 20) - 10;
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+    }
+
+    // Built-In Hardware Simulator for Viva Practice / Offline Preview
+    function toggleSimulation() {
+      const btn = document.getElementById('simBtn');
+      if (simTimer) {
+        clearInterval(simTimer);
+        simTimer = null;
+        btn.innerText = 'Simulate Live Hardware';
+        document.getElementById('statusDot').classList.remove('connected');
+        document.getElementById('connText').innerText = 'DISCONNECTED';
+        logMsg('Simulation stopped.');
+        return;
+      }
+
+      btn.innerText = 'Stop Simulation';
+      document.getElementById('statusDot').classList.add('connected');
+      document.getElementById('connText').innerText = 'SIMULATING BRD2709A';
+      logMsg('Started live hardware telemetry simulation...');
+
+      let tStep = 0;
+      simTimer = setInterval(() => {
+        tStep++;
+        // Simulate walking closer and further (-48 dBm to -72 dBm)
+        state.rssiSmooth = -58 + Math.sin(tStep * 0.25) * 11;
+        // Simulate gentle chip warming/cooling
+        state.tempC = Math.round(27 + Math.sin(tStep * 0.18) * 4);
+        tempHistory.push(state.tempC);
+        if (tempHistory.length > 30) tempHistory.shift();
+
+        // Evaluate simulated board rules
+        const overTemp = state.tempC >= state.thresholdC;
+        if (state.mode === 0) {
+          state.led0 = overTemp;
+          state.alarm = overTemp;
+        } else if (state.mode === 1) {
+          state.alarm = overTemp;
+        } else if (state.mode === 2) {
+          state.led0 = state.rssiSmooth < -65;
+          state.alarm = state.led0 || overTemp;
+        } else if (state.mode === 3) {
+          state.led0 = true;
+          state.alarm = true;
+        }
+        renderDashboard();
+      }, 600);
+    }
+
+    renderDashboard();
+  </script>
+</body>
+</html>
